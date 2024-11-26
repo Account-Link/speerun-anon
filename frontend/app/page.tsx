@@ -82,9 +82,11 @@ export default function Home() {
         <form onSubmit={handleSubmit}>
           <Card>
             <CardHeader>
-              <CardTitle>Anon Speedrun</CardTitle>
+              <CardTitle>Anon Speedrun: Post anonymously to X</CardTitle>
               <CardDescription>
                 Enter your text here and we will post it in anon for you.
+                Posts are made anonymous using TEEs.
+                Holder requirements: 500 $ANON
               </CardDescription>
             </CardHeader>
             <CardContent>
