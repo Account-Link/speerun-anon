@@ -84,9 +84,10 @@ export default function Home() {
             <CardHeader>
               <CardTitle>Anon Speedrun: Post anonymously to X</CardTitle>
               <CardDescription>
-                Enter your text here and we will post it in anon for you.
-                Posts are made anonymous using TEEs.
-                Holder requirements: 500 $ANON
+                Enter your text here and we will post it in anon for you.<br />
+                Posts are made anonymous using TEEs.<br />
+                Holder requirements: 500 $ANON.<br />
+                Check https://x.com/UUnuy for posts
               </CardDescription>
             </CardHeader>
             <CardContent>
