@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import {
@@ -14,18 +16,109 @@ import { ConnectKitButton } from "connectkit";
 import NFTRedeemerABI from "@/abi/NFTRedeemer.json";
 import { useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import { useFormStatus } from "react-dom";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ExternalLink, Loader2 } from "lucide-react";
+import axios from "axios";
 
-function SubmitButton() {
+declare global {
+  interface Window {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    google: any;
+  }
+}
+
+function SubmitButton({ content }: { content: string }) {
   const { pending } = useFormStatus();
+  const { writeContract } = useWriteContract();
   const { data: redeemData } = useWriteContract();
+  const buttonRef = useRef<HTMLDivElement>(null);
+
+  const handleCredentialResponse = (response: any) => {
+    // Get content from textarea
+    const content = (document.querySelector('textarea[name="content"]') as HTMLTextAreaElement)
+      ?.value;
+    console.log("Content to be posted:", content);
+
+    const jwt = response.credential;
+    console.log("JWT:", jwt);
+
+    // Decode and log JWT parts
+    const [headerB64, payloadB64] = jwt.split(".");
+    const header = JSON.parse(Buffer.from(headerB64, "base64").toString("utf-8"));
+    const payload = JSON.parse(Buffer.from(payloadB64, "base64").toString("utf-8"));
+    console.log("Decoded Header:", header);
+    console.log("Decoded Payload:", payload);
+
+    axios
+      .get("https://www.googleapis.com/oauth2/v3/certs")
+      .then((response) => {
+        // Fetch the public key associated with the JWT
+        const pubkey = response.data.keys.find((key: any) => key.kid === header.kid);
+        console.log("Public Key:", pubkey);
+
+        return { pubkey, header, payload };
+      })
+      .then((data) => {
+        console.log("Data:", data);
+
+        // Call our API endpoint
+        return axios.post("/api/generateCircuitInputs", {
+          jwt: jwt,
+          pubkey: {
+            n: data.pubkey.n,
+            e: 65537,
+          }, // RSA modulus from the public key
+          maxMessageLength: 1024, // Adjust this value as needed
+        });
+      })
+      .then((response) => {
+        console.log("Circuit Inputs:", response.data);
+
+        return axios.post("/api/proxyJwtProver", {
+          input: response.data,
+        });
+      })
+      .then((response) => {
+        console.log("Proof:", response.data);
+      })
+      .catch((error) => console.error("Error:", error));
+    // TODO: Once we have proof generation
+    // writeContract({
+    //   address: "0xF3Ee6EAE4Fcd555155b22C091878a9a533829D84",
+    //   abi: NFTRedeemerABI.abi,
+    //   functionName: "redeemNFT",
+    //   args: [content], // Will be replaced with proof later
+    // });
+  };
+
+  useEffect(() => {
+    if (!window.google || !buttonRef.current) return;
+
+    window.google.accounts.id.initialize({
+      client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID!,
+      callback: handleCredentialResponse,
+      nonce: content,
+    });
+
+    window.google.accounts.id.renderButton(buttonRef.current, {
+      type: "standard",
+      theme: "outline",
+      size: "large",
+      text: "signin_with_google",
+      width: buttonRef.current.offsetWidth,
+    });
+  }, [content]);
 
   return (
-    <Button type="submit" className="w-full" disabled={pending || Boolean(redeemData)}>
-      {redeemData ? "Submitting..." : "Submit"}
-    </Button>
+    <div
+      ref={buttonRef}
+      className="w-full h-12"
+      style={{
+        opacity: content ? 1 : 0.5,
+        pointerEvents: content ? "auto" : "none",
+      }}
+    />
   );
 }
 
@@ -41,6 +134,7 @@ export default function Home() {
   );
   const [mockSuccess, setMockSuccess] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(true);
+  const [content, setContent] = useState("");
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -92,10 +186,12 @@ export default function Home() {
                 placeholder="Enter your text here..."
                 required
                 minLength={1}
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
               />
             </CardContent>
             <CardFooter>
-              <SubmitButton />
+              <SubmitButton content={content} />
             </CardFooter>
           </Card>
         </form>
@@ -127,7 +223,9 @@ export default function Home() {
                     Transaction confirmed! ✨
                   </p>
                   <a
-                    href={`https://basescan.org/tx/${hash || (process.env.NODE_ENV === "development" ? mockHash : "")}`}
+                    href={`https://basescan.org/tx/${
+                      hash || (process.env.NODE_ENV === "development" ? mockHash : "")
+                    }`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-blue-600 hover:text-blue-700 transition-colors flex items-center gap-2"
