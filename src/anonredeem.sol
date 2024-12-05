@@ -4,10 +4,13 @@ pragma solidity ^0.8.20;
 import "./NFT.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {JwtProof} from "../lib/jwt-tx-builder/packages/contracts/src/interfaces/IVerifier.sol";
+import {JwtVerifier} from "../lib/jwt-tx-builder/packages/contracts/src/utils/JwtVerifier.sol";
 
 contract NFTRedeemer is Ownable {
     NFT public nftContract;
     IERC20 public erc20Token;
+    JwtVerifier public jwtVerifier;
 
     // Array to keep track of available token IDs for redemption
     uint256[] private availableTokenIds;
@@ -19,9 +22,10 @@ contract NFTRedeemer is Ownable {
     event NFTAdded(uint256 tokenId);
     event NFTRemoved(uint256 tokenId);
 
-    constructor(address _nftAddress) {
+    constructor(address _nftAddress, address _jwtVerifier) {
         nftContract = NFT(_nftAddress);
         erc20Token = IERC20(_erc20Address);
+        jwtVerifier = JwtVerifier(_jwtVerifier);
     }
 
     // Owner can add NFTs to the list of redeemable tokens
@@ -34,10 +38,12 @@ contract NFTRedeemer is Ownable {
     }
 
     // Function to redeem an NFT without specifying the tokenId
-    function redeemNFT(string memory content) public {
+    function redeemNFT(string memory content, JwtProof memory proof) public {
         require(erc20Token.balanceOf(msg.sender) > 5000 * 10**18, "Insufficient $ANON balance");
 
         require(availableTokenIds.length > 0, "No NFTs available for redemption");
+
+        require(jwtVerifier.verifyJwtProof(proof), "Invalid JWT proof");
 
         // Select the first available token ID for redemption
         uint256 tokenId = availableTokenIds[availableTokenIds.length - 1];

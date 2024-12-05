@@ -27,9 +27,8 @@ export default function RootLayout({
   return (
     <Web3Provider>
       <html lang="en">
-        <body
-          className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-        >
+        <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+          <script src="https://accounts.google.com/gsi/client" async defer></script>
           {children}
         </body>
       </html>
