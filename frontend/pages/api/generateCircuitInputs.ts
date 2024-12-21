@@ -19,6 +19,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       exposeGoogleId: true,
     });
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { accountCode, codeIndex, iatKeyStartIndex, ...filteredCircuitInputs } = circuitInputs;
 
     res.status(200).json(filteredCircuitInputs);
